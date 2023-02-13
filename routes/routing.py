@@ -6,5 +6,5 @@ from . consumers import *
 
 
 websocket_urlpatterns = ([
-    path('routes/map/', RouteConsumer.as_asgi()),
+    path('map/', RouteConsumer.as_asgi()),
 ])
