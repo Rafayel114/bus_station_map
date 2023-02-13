@@ -22,19 +22,23 @@ class Station(models.Model):
     point = gis_models.PointField(null=True, blank=True)
 
     def save(self, *args, **kwargs):    # переопределили сейв чтобы сохранить поинт
-        print(self.lon)
-        self.point = Point((self.lon, self.lat),)
-        instance = Station.objects.get(pk=self.id)
-        old_lat = instance.lat
-        old_lon = instance.lon
-        super(Station, self).save(*args, **kwargs)
-        instance.refresh_from_db()
-        if instance.lat != old_lat or instance.lon != old_lon:
-            try:
-                route_dict = model_to_dict(self.current_stop.last().route)
-                async_to_sync(channel_layer.group_send)('routes', {'type': 'send_new_data', 'text': json.dumps(route_dict, indent=4, sort_keys=True, default=str)})
-            except:
-                pass
+        is_new = True if not self.id else False
+        if is_new:
+            super(Station, self).save(*args, **kwargs)
+        else:
+            print(self.lon)
+            self.point = Point((self.lon, self.lat),)
+            instance = Station.objects.get(pk=self.id)
+            old_lat = instance.lat
+            old_lon = instance.lon
+            super(Station, self).save(*args, **kwargs)
+            instance.refresh_from_db()
+            if instance.lat != old_lat or instance.lon != old_lon:
+                try:
+                    route_dict = model_to_dict(self.current_stop.last().route)
+                    async_to_sync(channel_layer.group_send)('routes', {'type': 'send_new_data', 'text': json.dumps(route_dict, indent=4, sort_keys=True, default=str)})
+                except:
+                    pass
 
 
 

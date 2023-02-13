@@ -1,11 +1,7 @@
 from django.urls import path
-# from . routing import routing
 from . consumers import *
+from . views import *
 
 urlpatterns = [
-    # path('', HomePage.as_view(), name='home'),
+    path('map/', RouteMap.as_view(), name='home'),
 ]
-
-# websocket_urlpatterns = ([
-#     path('map/', RouteConsumer.as_asgi()),
-# ])

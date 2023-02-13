@@ -45,3 +45,12 @@ ymaps.ready(function () {
     });
     myMap.controls.add(switchPointsButton);
 });
+
+// Создание маршрута.
+var multiRoute = new ymaps.multiRouter.MultiRoute({
+    referencePoints: [
+        [55.734470, 37.58000],
+        [55.734336, 37.51218],
+        [55.724102, 37.19912]
+    ]
+}
