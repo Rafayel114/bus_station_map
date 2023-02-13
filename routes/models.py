@@ -24,7 +24,19 @@ class Station(models.Model):
     def save(self, *args, **kwargs):    # переопределили сейв чтобы сохранить поинт
         print(self.lon)
         self.point = Point((self.lon, self.lat),)
+        instance = Station.objects.get(pk=self.id)
+        old_lat = instance.lat
+        old_lon = instance.lon
         super(Station, self).save(*args, **kwargs)
+        instance.refresh_from_db()
+        if instance.lat != old_lat or instance.lon != old_lon:
+            try:
+                route_dict = model_to_dict(self.current_stop.last().route)
+                async_to_sync(channel_layer.group_send)('routes', {'type': 'send_new_data', 'text': json.dumps(route_dict, indent=4, sort_keys=True, default=str)})
+            except:
+                pass
+
+
 
     def __str__(self):
         return "{}".format(self.title)
@@ -54,22 +66,9 @@ class Route(models.Model):
         else:
             instance = Route.objects.get(id=self.id)
             print(instance.current_stop.all())
-            old_station_ids = sorted(list(instance.current_stop.all().values_list('id', flat=True)))
-            print("BBBBBBBEEEEEEEEFFFFFFFOOOOOOORRRRRREEEEEEEE")
-            print(old_station_ids)
             super(Route, self).save(*args, **kwargs)
-            instance.refresh_from_db()
-            chinstance = Route.objects.get(id=self.id)
-            print("SSSSSssssssSSSSSSSssssssssstopos ara {}".format(instance.current_stop.all()))
-            new_station_ids = sorted(list(instance.current_stop.all().values_list('id', flat=True)))
-            print("AAAFFFFFFFFFTTTTTTTEEEEEEEERRRRRRRRRRRR ")
-            print(new_station_ids)
-            if new_station_ids != old_station_ids:
-                route_dict = model_to_dict(instance)
-                print("auc dict issssssssssssssssss {}".format(route_dict))
-                async_to_sync(channel_layer.group_send)('routes', {'type': 'send_new_data', 'text': json.dumps(route_dict, indent=4, sort_keys=True, default=str)})
-            else:
-                pass
+            route_dict = model_to_dict(instance)
+            async_to_sync(channel_layer.group_send)('routes', {'type': 'send_new_data', 'text': json.dumps(route_dict, indent=4, sort_keys=True, default=str)})
 
 
 class CurrentStop(models.Model):
@@ -98,35 +97,28 @@ class CurrentStop(models.Model):
             # chinstance = CurrentStop.objects.get(id=self.id)
             route = Route.objects.get(pk=instance.route.id)
             route_dict = model_to_dict(route)
-            print(route_dict)
             if instance.route.id != old_instance_route:
-                print("CHAAAAAAAAAAAAAAAANGGGGGGGEDDDDDDDDDD {} ------ {}".format(instance.route.id, old_instance_route))
                 async_to_sync(channel_layer.group_send)('routes', {'type': 'send_new_data', 'text': json.dumps(route_dict, indent=4, sort_keys=True, default=str)})
             if instance.station.id != old_station_id:
-                print("CHAAAAAAAAAAAAAAAANGGGGGGGEDDDDDDDDDD")
                 async_to_sync(channel_layer.group_send)('routes', {'type': 'send_new_data', 'text': json.dumps(route_dict, indent=4, sort_keys=True, default=str)})
-            if instance.station.lat != old_station_lat or \
-               instance.station.lon != old_station_lon:
-               print("CHAAAAAAAAAAAAAAAANGGGGGGGEDDDDDDDDDD")
-               async_to_sync(channel_layer.group_send)('routes', {'type': 'send_new_data', 'text': json.dumps(route_dict, indent=4, sort_keys=True, default=str)})
 
     class Meta:
         verbose_name = "Остановка маршрута"
         verbose_name_plural = "Остановки маршрутов"
 
 
-@receiver(pre_save, sender=Route)
-def update_route(sender, instance: Route, **kwargs):
-    if not instance.id:
-        return
-    else:
-        old_instance = sender.objects.get(id=instance.id)
-        old_station_ids = sorted(list(old_instance.current_stop.all().values_list('id', flat=True)))
-        print(old_station_ids)
-        new_station_ids = sorted(list(instance.current_stop.all().values_list('id', flat=True)))
-        print(new_station_ids)
-        if old_station_ids != new_station_ids:
-            async_to_sync(channel_layer.group_send)('auctions', {'type': 'send_new_data',
-                                                                 'text': json.dumps(auc_dict, indent=4, sort_keys=True, default=str)})
-            async_to_sync(channel_layer.group_send)('auction'+str(cur_auction.id), {'type': 'send_new_data',
-                                                                                     'text': json.dumps(auc_dict, indent=4, sort_keys=True, default=str)})
+# @receiver(pre_save, sender=Route)
+# def update_route(sender, instance: Route, **kwargs):
+#     if not instance.id:
+#         return
+#     else:
+#         old_instance = sender.objects.get(id=instance.id)
+#         old_station_ids = sorted(list(old_instance.current_stop.all().values_list('id', flat=True)))
+#         print(old_station_ids)
+#         new_station_ids = sorted(list(instance.current_stop.all().values_list('id', flat=True)))
+#         print(new_station_ids)
+#         if old_station_ids != new_station_ids:
+#             async_to_sync(channel_layer.group_send)('auctions', {'type': 'send_new_data',
+#                                                                  'text': json.dumps(auc_dict, indent=4, sort_keys=True, default=str)})
+#             async_to_sync(channel_layer.group_send)('auction'+str(cur_auction.id), {'type': 'send_new_data',
+#                                                                                      'text': json.dumps(auc_dict, indent=4, sort_keys=True, default=str)})
