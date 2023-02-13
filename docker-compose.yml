@@ -1,0 +1,40 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgis/postgis:latest
+    restart: on-failure
+    # volumes:
+    #   - /usr/local/var/postgres:/var/lib/postgres/data/pgdata
+    environment:
+    #   - COMPOSE_HTTP_TIMEOUT=90
+    #   - TZ=Europe/Moscow
+      - PGDATA= /var/lib/postgresql/data/
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=087007
+    ports:
+      - 5432:5432
+    container_name: stations_db
+    # expose:
+    #   - 5432
+
+  web:
+    restart: always
+    build: .
+    command: bash -c "python manage.py makemigrations &&
+                      python manage.py migrate &&
+                      python manage.py runserver 0.0.0.0:8088"
+    volumes:
+      - .:/code
+    ports:
+      - "8088:8088"
+    depends_on:
+      - db
+    container_name: web_stations
+    environment:
+      - TZ=Europe/Moscow
+      - DJANGO_SUPERUSER_PASSWORD=adminAdm1n
+      - DJANGO_SUPERUSER_USERNAME=admin
+  redis:
+    image: redis:alpine

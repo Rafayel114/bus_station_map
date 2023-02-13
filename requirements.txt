@@ -1,0 +1,9 @@
+Django
+django-cors-headers
+djangochannelsrestframework
+djangorestframework
+psycopg2-binary
+sqlparse
+channels
+channels-redis
+redis
