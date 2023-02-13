@@ -1,56 +1,47 @@
-ymaps.ready(function () {
-    var myMap = new ymaps.Map('map', {
-        center: [55.753994, 37.622093],
-        zoom: 9,
-        // Добавим панель маршрутизации.
-        controls: ['routePanelControl']
-    });
+ymaps.ready(() => {
+  const WS_URL = `ws://${window.location.host}/map/`;
+  const ticksSocket = new WebSocket(WS_URL);
+  var myMap = new ymaps.Map("map", {
+    center: [55.753994, 37.622093],
+    zoom: 10,
+    // Добавим панель маршрутизации.
+    controls: ["routePanelControl"],
+  });
 
-    var control = myMap.controls.get('routePanelControl');
+	// Прослушка сокета
+  ticksSocket.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    console.info(data);
+    const { routes } = data;
 
-    // Зададим состояние панели для построения машрутов.
-    control.routePanel.state.set({
-        // Тип маршрутизации.
-        type: 'masstransit',
-        // Выключим возможность задавать пункт отправления в поле ввода.
-        fromEnabled: false,
-        // Адрес или координаты пункта отправления.
-        from: 'Москва, Льва Толстого 16',
-        // Включим возможность задавать пункт назначения в поле ввода.
-        toEnabled: true
-        // Адрес или координаты пункта назначения.
-        //to: 'Петербург'
-    });
+    if (routes?.length) {
 
-    // Зададим опции панели для построения машрутов.
-    control.routePanel.options.set({
-        // Запрещаем показ кнопки, позволяющей менять местами начальную и конечную точки маршрута.
-        allowSwitch: false,
-        // Включим определение адреса по координатам клика.
-        // Адрес будет автоматически подставляться в поле ввода на панели, а также в подпись метки маршрута.
-        reverseGeocoding: true,
-        // Зададим виды маршрутизации, которые будут доступны пользователям для выбора.
-        types: { masstransit: true, pedestrian: true, taxi: true }
-    });
+			// Для каджого маршрута создаём новый мультироут
+      routes.forEach((route) => {
+        const referencePoints = route.current_stops.map(
+          (stop) => `${stop.station.lon}, ${stop.station.lat}`
+        );
 
-    // Создаем кнопку, с помощью которой пользователи смогут менять местами начальную и конечную точки маршрута.
-    var switchPointsButton = new ymaps.control.Button({
-        data: {content: "Поменять местами", title: "Поменять точки местами"},
-        options: {selectOnClick: false, maxWidth: 160}
-    });
-    // Объявляем обработчик для кнопки.
-    switchPointsButton.events.add('click', function () {
-        // Меняет местами начальную и конечную точки маршрута.
-        control.routePanel.switchPoints();
-    });
-    myMap.controls.add(switchPointsButton);
+				// До объявления условия надо придумать как чистить все маршруты.
+				const multiRoute = new ymaps.multiRouter.MultiRoute({referencePoints});
+
+				// Добавление маршрута
+        myMap.geoObjects.add(multiRoute);
+
+
+				// Активируем последний добавленный маршрут
+        multiRoute.events.once("update",() => {
+          var routes = multiRoute.getRoutes();
+          for (var i = 0, l = routes.getLength(); i < l; i++) {
+            var route = routes.get(i);
+            if (!route.properties.get("blocked")) {
+              multiRoute.setActiveRoute(route);
+              route.balloon.open();
+              break;
+            }
+          }
+        });
+      });
+    }
+  };
 });
-
-// Создание маршрута.
-var multiRoute = new ymaps.multiRouter.MultiRoute({
-    referencePoints: [
-        [55.734470, 37.58000],
-        [55.734336, 37.51218],
-        [55.724102, 37.19912]
-    ]
-}
